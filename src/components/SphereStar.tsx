@@ -1,0 +1,213 @@
+import React, { useEffect, useMemo, useRef, useState } from 'react';
+import * as THREE from 'three';
+import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js';
+import { Splide, SplideSlide } from '@splidejs/react-splide';
+import '@splidejs/splide/dist/css/splide.min.css';
+import Image from 'next/image';
+import img1 from '../../public/1.png'
+import img2 from '../../public/2.png'
+import img3 from '../../public/3.png'
+import img4 from '../../public/4.png'
+import '../styles/slider.module.scss'
+
+const ThreeJSBallWithStars = () => {
+  const sliderRef = useRef<InstanceType<typeof Splide>>(null);
+  const [translate, setTranslate] = useState(0);
+  const animateRef = useRef(0)
+  const sceneRef = useRef<THREE.Scene | null>(null)
+  const cameraRef = useRef<THREE.PerspectiveCamera | null>(null)
+  const rendererRef = useRef<THREE.WebGLRenderer | null>(null)
+  const controlsRef = useRef<OrbitControls | null>(null)
+  const geometryRef = useRef<THREE.SphereGeometry | null>(null)
+  const materialRef = useRef<THREE.MeshBasicMaterial | null>(null)
+  const sphereRef = useRef<THREE.Mesh | null>(null)
+  const starsGeometryRef = useRef<THREE.BufferGeometry | null>(null)
+  const starsMaterialRef = useRef<THREE.PointsMaterial | null>(null)
+  const starsRef = useRef<THREE.Points | null>(null)
+  const lastAzimuthalAngleRef = useRef(0)
+  const rotationDirectionRef = useRef(1) // 1 for clockwise, -1 for counter-clockwise
+
+  useEffect(() => {
+    initWebGl()
+    initDraw()
+    animation();
+    // const observer = new IntersectionObserver((c) => {
+    //   console.log(111111, c)
+    // })
+    // observer.observe(document.querySelector('#dadf')!)
+    // 
+
+    return () => {
+      // 清除副作用
+      cancelAnimationFrame(animateRef.current)
+    }
+  }, []);
+
+  const initWebGl = () => {
+    // 创建场景
+    const scene = new THREE.Scene();
+
+    // 创建相机
+    const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
+
+    // 创建渲染器并设置背景色为黑色
+    const renderer = new THREE.WebGLRenderer();
+    renderer.setSize(window.innerWidth, window.innerHeight);
+    renderer.setClearColor(0x000000, 0);
+    document.getElementById('three-container')?.appendChild(renderer.domElement);
+
+    // 初始化OrbitControls
+    const controls = new OrbitControls(camera, renderer.domElement);
+    controls.enablePan = false;
+    controls.enableZoom = false;
+    controls.minPolarAngle = Math.PI / 2;
+    controls.maxPolarAngle = Math.PI / 2;
+    controls.enableDamping = true;
+    controls.dampingFactor = 0.01;
+    controls.enabled = true
+
+    controls.addEventListener('change', function () {
+      // 浏览器控制台查看相机位置变化
+      // console.log('camera.position', camera.position);
+    });
+
+    controls.addEventListener('start', function () {
+      lastAzimuthalAngleRef.current = controls.getAzimuthalAngle();
+    });
+
+    controls.addEventListener('change', function () {
+      const currentAzimuthalAngle = controls.getAzimuthalAngle();
+      const deltaAzimuthalAngle = currentAzimuthalAngle - lastAzimuthalAngleRef.current;
+
+      // 使用比例因子计算 translate 值
+      const translateValue = -currentAzimuthalAngle * 1000;
+
+      if (deltaAzimuthalAngle > 0) {
+        sliderRef.current?.splide?.Components.Move.translate(translateValue)
+        rotationDirectionRef.current = -1
+      } else if (deltaAzimuthalAngle < 0) {
+        sliderRef.current?.splide?.Components.Move.translate(translateValue)
+        rotationDirectionRef.current = 1
+      }
+
+      lastAzimuthalAngleRef.current = currentAzimuthalAngle;
+    });
+
+    // 创建透明球体
+    const geometry = new THREE.SphereGeometry(5, 32, 32);
+    const material = new THREE.MeshBasicMaterial({ color: 0x000000, transparent: true, opacity: 0 });
+    const sphere = new THREE.Mesh(geometry, material);
+    scene.add(sphere);
+
+    // 创建星星
+    const starsGeometry = new THREE.BufferGeometry();
+    const starsMaterial = new THREE.PointsMaterial({ color: 0xFFFFFF, size: 0.02, vertexColors: true });
+
+    sceneRef.current = scene
+    cameraRef.current = camera
+    rendererRef.current = renderer
+    controlsRef.current = controls
+    geometryRef.current = geometry
+    materialRef.current = material
+    sphereRef.current = sphere
+    starsGeometryRef.current = starsGeometry
+    starsMaterialRef.current = starsMaterial
+  }
+
+  const initDraw = () => {
+    const vertices = [];
+    const colors = [];
+    for (let i = 0; i < 500; i++) {
+      const theta = Math.random() * 2 * Math.PI;
+      const phi = Math.random() * Math.PI;
+      const radius = 5;
+
+      const x = radius * Math.sin(phi) * Math.cos(theta);
+      const y = radius * Math.sin(phi) * Math.sin(theta);
+      const z = radius * Math.cos(phi);
+
+      vertices.push(x, y, z);
+      colors.push(1, 1, 1);
+    }
+
+    starsGeometryRef.current?.setAttribute('position', new THREE.Float32BufferAttribute(vertices, 3));
+    starsGeometryRef.current?.setAttribute('color', new THREE.Float32BufferAttribute(colors, 3));
+    starsRef.current = new THREE.Points(starsGeometryRef.current!, starsMaterialRef.current!);
+    sceneRef.current?.add(starsRef.current);
+
+    // 设置相机位置和方向
+    cameraRef.current!.position.z = 10;
+    cameraRef.current!.position.y = 0;
+    cameraRef.current!.lookAt(0, 0, 0);
+  }
+
+  // 渲染循环
+  const animate = () => {
+    // 使星星闪烁
+    const colors = starsGeometryRef.current?.attributes.color.array ?? [];
+    for (let i = 0; i < colors.length; i += 3) {
+      const opacity = 0.5 + 0.5 * Math.sin(0.1 * i + Date.now() * 0.001);
+      colors[i] = opacity;
+      colors[i + 1] = opacity;
+      colors[i + 2] = opacity;
+    }
+    starsGeometryRef.current!.attributes.color.needsUpdate = true;
+
+    sphereRef.current!.rotation.y += 0.0005 * rotationDirectionRef.current + translate;
+    starsRef.current!.rotation.y += 0.0005 * rotationDirectionRef.current + translate;
+    controlsRef.current!.update();
+    rendererRef.current!.render(sceneRef.current!, cameraRef.current!);
+  };
+
+  const animation = () => {
+    animateRef.current = requestAnimationFrame(animation)
+    animate()
+  }
+
+  useEffect(() => {
+    if (translate !== 0) {
+      cancelAnimationFrame(animateRef.current)
+      animate()
+    } else {
+      animation()
+    }
+  }, [translate])
+
+  return <section style={{
+    width: '100%',
+    height: '100vh',
+    position: 'relative',
+    background: 'black'
+  }} className='flex justify-center'>
+    <div id='slider' style={{ width: '80%', position: 'absolute', top: '50%', zIndex: 1 }}>
+      <Splide
+        ref={sliderRef}
+        options={{
+          type: 'loop',
+          perPage: 3,
+          arrows: false,
+          pagination: false,
+          drag: false
+        }}>
+        <SplideSlide key={1}>
+          <div style={{ pointerEvents: 'auto' }}>
+            <Image style={{ cursor: 'pointer' }} width={200} src={img1} alt="Image 1" />
+          </div>
+        </SplideSlide>
+        <SplideSlide key={2}>
+          <Image style={{ cursor: 'pointer' }} width={200} src={img2} alt="Image 2" />
+        </SplideSlide>
+        <SplideSlide key={3}>
+          <Image style={{ cursor: 'pointer' }} width={200} src={img3} alt="Image 3" />
+        </SplideSlide >
+        <SplideSlide key={4}>
+          <Image style={{ cursor: 'pointer' }} width={200} src={img4} alt="Image 4" />
+        </SplideSlide>
+      </Splide>
+    </div>
+    <div className='absolute' id="three-container" style={{ width: '100%', height: '100vh', position: 'absolute' }}>
+    </div>
+  </section>
+};
+
+export default ThreeJSBallWithStars;
