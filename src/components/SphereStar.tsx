@@ -23,6 +23,7 @@ const ThreeJSBallWithStars = () => {
   const starsGeometryRef = useRef<THREE.BufferGeometry | null>(null)
   const starsMaterialRef = useRef<THREE.PointsMaterial | null>(null)
   const starsRef = useRef<THREE.Points | null>(null)
+  const slidesElRef = useRef<Array<HTMLDivElement>>([])
   const lastAzimuthalAngleRef = useRef(0)
   const rotationDirectionRef = useRef(1) // 1 for clockwise, -1 for counter-clockwise
 
@@ -33,11 +34,6 @@ const ThreeJSBallWithStars = () => {
     initWebGl()
     initDraw()
     animation()
-    // const observer = new IntersectionObserver((c) => {
-    //   console.log(111111, c)
-    // })
-    // observer.observe(document.querySelector('#dadf')!)
-    //
 
     return () => {
       // 清除副作用
@@ -130,6 +126,9 @@ const ThreeJSBallWithStars = () => {
     sphereRef.current = sphere
     starsGeometryRef.current = starsGeometry
     starsMaterialRef.current = starsMaterial
+    setTimeout(() => {
+      controlsRef.current?.dispose()
+    })
   }
 
   const initDraw = () => {
@@ -191,8 +190,86 @@ const ThreeJSBallWithStars = () => {
     animate()
   }
 
-  const preRecordX = useRef(0)
-  const afterRecordX = useRef(0)
+  /**
+   * 手动实现控制器 控制webgl和slider联动
+   */
+  useEffect(() => {
+    const root = document.querySelector('#section') as HTMLDivElement
+    let startPos = 0
+    let timer = 0
+    let diff = 0
+
+
+    const limitLeft = window.innerWidth * 0.2
+    const ballSport = () => {
+      sphereRef.current!.rotation.y += 0.0005 * diff
+      starsRef.current!.rotation.y += 0.0005 * diff
+      controlsRef.current!.update()
+      rendererRef.current!.render(sceneRef.current!, cameraRef.current!)
+
+      // slider
+      const sliderPos =
+        sliderRef.current?.splide?.Components.Move.getPosition() ?? 0
+      sliderRef.current?.splide?.Components.Move.translate(
+        sliderPos + diff * 0.05
+      )
+
+      // process slider items
+      slidesElRef.current.forEach((el) => {
+        const leftPos = el.getBoundingClientRect().x
+        // const rightPos = window.innerWidth - el.offsetLeft - el.offsetWidth
+        if(leftPos < limitLeft && leftPos > 0) {
+          el.style.transform = 'scale(0.0001)'
+        } else {
+          el.style.transform = 'scale(1)'
+        }
+      })
+    }
+
+    root?.addEventListener('mousedown', (e) => {
+      startPos = e.clientX
+      diff = 0
+      const handleMove = (e: MouseEvent) => {
+        diff = e.clientX - startPos
+        ballSport()
+        diff < 0
+          ? (rotationDirectionRef.current = -1)
+          : (rotationDirectionRef.current = 1)
+      }
+      const handleUp = () => {
+        root.removeEventListener('mousemove', handleMove)
+        root.removeEventListener('mouseup', handleUp)
+        const startDiff = diff
+        if (startDiff === 0) return
+        const loop = () => {
+          timer = requestAnimationFrame(() => {
+            loop()
+            ballSport()
+            diff -= diff / 33
+            console.log('🚀 ', diff)
+
+            if (startDiff > 0 && diff < 0.8) {
+              cancelAnimationFrame(timer)
+            } else if (startDiff < 0 && diff > -0.8) {
+              cancelAnimationFrame(timer)
+            }
+          })
+        }
+        loop()
+      }
+      root.addEventListener('mousemove', handleMove)
+      root.addEventListener('mouseup', handleUp)
+    })
+  }, [])
+
+  useEffect(() => {
+    sliderRef.current?.splide?.Components.Slides.forEach((e) => {
+      const el = e.slide as HTMLDivElement
+      el.style.transition = 'all linear .5s'
+      slidesElRef.current.push(el)
+    }),
+      [sliderRef]
+  })
 
   return (
     <section
@@ -207,34 +284,15 @@ const ThreeJSBallWithStars = () => {
     >
       <div
         id='slider'
-        onPointerDown={(e) => {
-          e.stopPropagation()
-          e.preventDefault()
-          console.log(11111, preRecordX.current, afterRecordX.current)
-          if (preRecordX.current !== afterRecordX.current) {
-            preRecordX.current = 0
-            afterRecordX.current = 0
-            return
-          }
-          console.log(99999, e)
-        }}
-        onMouseDown={(e) => {
-          e.stopPropagation()
-          e.preventDefault()
-          preRecordX.current = e?.pageX
-        }}
-        onMouseUp={(e) => {
-          e.preventDefault()
-          e.stopPropagation()
-          afterRecordX.current = e?.pageX
-        }}
-        onMouseMove={() => console.log(11111)}
         style={{
           width: '80%',
           position: 'absolute',
           top: '50%',
           zIndex: 1,
           userSelect: 'none',
+        }}
+        onClick={() => {
+          console.log('我被点击了')
         }}
       >
         <Splide
@@ -249,7 +307,7 @@ const ThreeJSBallWithStars = () => {
           }}
         >
           <SplideSlide key={1}>
-            <div onClick={() => console.log(111112222)}>
+            <div>
               <Image
                 style={{ cursor: 'pointer' }}
                 width={200}
