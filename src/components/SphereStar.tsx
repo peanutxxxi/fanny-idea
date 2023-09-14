@@ -191,12 +191,12 @@ const ThreeJSBallWithStars = () => {
     animate()
   }
 
+  const preRecordX = useRef(0)
+  const afterRecordX = useRef(0)
+
   return (
     <section
       id='section'
-      onClick={(e) => {
-        console.log(111, 'section')
-      }}
       style={{
         width: '100%',
         height: '100vh',
@@ -207,10 +207,28 @@ const ThreeJSBallWithStars = () => {
     >
       <div
         id='slider'
-        onPointerDown={(e)=>{
+        onPointerDown={(e) => {
           e.stopPropagation()
-          console.log(99999)
+          e.preventDefault()
+          console.log(11111, preRecordX.current, afterRecordX.current)
+          if (preRecordX.current !== afterRecordX.current) {
+            preRecordX.current = 0
+            afterRecordX.current = 0
+            return
+          }
+          console.log(99999, e)
         }}
+        onMouseDown={(e) => {
+          e.stopPropagation()
+          e.preventDefault()
+          preRecordX.current = e?.pageX
+        }}
+        onMouseUp={(e) => {
+          e.preventDefault()
+          e.stopPropagation()
+          afterRecordX.current = e?.pageX
+        }}
+        onMouseMove={() => console.log(11111)}
         style={{
           width: '80%',
           position: 'absolute',
