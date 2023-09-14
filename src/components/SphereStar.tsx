@@ -79,14 +79,16 @@ const ThreeJSBallWithStars = () => {
       const currentAzimuthalAngle = controls.getAzimuthalAngle();
       const deltaAzimuthalAngle = currentAzimuthalAngle - lastAzimuthalAngleRef.current;
 
-      // 使用比例因子计算 translate 值
-      const translateValue = -currentAzimuthalAngle * 1000;
+      const width = (document.querySelector('div ul') as HTMLUListElement)?.offsetWidth
 
+      // 使用比例因子计算 translate 值 --宽度/图的数量*3.38976
+      const translateValue = -currentAzimuthalAngle * (width / 4 * 3.38976)
+
+      sliderRef.current?.splide?.Components.Move.translate(translateValue)
       if (deltaAzimuthalAngle > 0) {
-        sliderRef.current?.splide?.Components.Move.translate(translateValue)
+
         rotationDirectionRef.current = -1
       } else if (deltaAzimuthalAngle < 0) {
-        sliderRef.current?.splide?.Components.Move.translate(translateValue)
         rotationDirectionRef.current = 1
       }
 
@@ -153,8 +155,10 @@ const ThreeJSBallWithStars = () => {
     }
     starsGeometryRef.current!.attributes.color.needsUpdate = true;
 
-    sphereRef.current!.rotation.y += 0.0005 * rotationDirectionRef.current + translate;
-    starsRef.current!.rotation.y += 0.0005 * rotationDirectionRef.current + translate;
+    console.log()
+
+    sphereRef.current!.rotation.y += 0.0005 * (rotationDirectionRef.current + translate);
+    starsRef.current!.rotation.y += 0.0005 * (rotationDirectionRef.current + translate);
     controlsRef.current!.update();
     rendererRef.current!.render(sceneRef.current!, cameraRef.current!);
   };
@@ -165,6 +169,9 @@ const ThreeJSBallWithStars = () => {
   }
 
   useEffect(() => {
+    // 初始化轮播图位置
+    sliderRef.current?.splide?.Components.Move.translate(0)
+
     if (translate !== 0) {
       cancelAnimationFrame(animateRef.current)
       animate()
@@ -173,24 +180,70 @@ const ThreeJSBallWithStars = () => {
     }
   }, [translate])
 
+  const [move, setMove] = useState(false)
+
+  useEffect(() => {
+    const slider = document.getElementById("slider");
+
+    let isDragging = false;
+    let startX = 0;
+
+    slider?.addEventListener("mousedown", function (event) {
+      isDragging = true;
+      startX = event.clientX;
+    });
+
+    document.addEventListener("mousemove", function (event) {
+      if (isDragging) {
+        const deltaX = event.clientX - startX;
+
+        // const curPosition = sliderRef.current?.splide?.Components.Move.getPosition()
+        // sliderRef.current?.splide?.Components.Move.translate(deltaX + curPosition!)
+        if (deltaX !== 0) {
+          setMove(true)
+        }
+
+        startX = event.clientX;
+      }
+    });
+
+    document.addEventListener("mouseup", function () {
+      isDragging = false;
+    });
+  }, [move])
+
   return <section style={{
     width: '100%',
     height: '100vh',
     position: 'relative',
     background: 'black'
   }} className='flex justify-center'>
-    <div id='slider' style={{ width: '80%', position: 'absolute', top: '50%', zIndex: 1 }}>
+    <div id='slider' onMouseDown={() => console.log(3333)} onMouseEnter={(e) => {
+      e.stopPropagation()
+      e.preventDefault()
+      console.log(11111)
+      if (!move) setMove(true)
+    }} onMouseOut={(e) => {
+      e.stopPropagation()
+      e.preventDefault()
+      if (move) setMove(false)
+
+      console.log(222222)
+    }}
+      style={{ width: '80%', position: 'absolute', top: '50%', zIndex: 1, pointerEvents: move ? 'none' : 'auto' }}>
       <Splide
         ref={sliderRef}
+        onDragging={(r) => console.log(111111, r)}
         options={{
           type: 'loop',
           perPage: 3,
           arrows: false,
           pagination: false,
-          drag: false
+          drag: false,
+          waitForTransition: true
         }}>
         <SplideSlide key={1}>
-          <div style={{ pointerEvents: 'auto' }}>
+          <div>
             <Image style={{ cursor: 'pointer' }} width={200} src={img1} alt="Image 1" />
           </div>
         </SplideSlide>
