@@ -12,7 +12,6 @@ import '../styles/slider.module.scss'
 
 const ThreeJSBallWithStars = () => {
   const sliderRef = useRef<InstanceType<typeof Splide>>(null);
-  const [translate, setTranslate] = useState(0);
   const animateRef = useRef(0)
   const sceneRef = useRef<THREE.Scene | null>(null)
   const cameraRef = useRef<THREE.PerspectiveCamera | null>(null)
@@ -28,6 +27,9 @@ const ThreeJSBallWithStars = () => {
   const rotationDirectionRef = useRef(1) // 1 for clockwise, -1 for counter-clockwise
 
   useEffect(() => {
+    // 初始化轮播图位置
+    sliderRef.current?.splide?.Components.Move.translate(0)
+
     initWebGl()
     initDraw()
     animation();
@@ -55,16 +57,17 @@ const ThreeJSBallWithStars = () => {
     renderer.setSize(window.innerWidth, window.innerHeight);
     renderer.setClearColor(0x000000, 0);
     document.getElementById('three-container')?.appendChild(renderer.domElement);
+    const section = document.getElementById('section')
 
     // 初始化OrbitControls
-    const controls = new OrbitControls(camera, renderer.domElement);
+    const controls = new OrbitControls(camera, section!);
     controls.enablePan = false;
     controls.enableZoom = false;
     controls.minPolarAngle = Math.PI / 2;
     controls.maxPolarAngle = Math.PI / 2;
     controls.enableDamping = true;
     controls.dampingFactor = 0.01;
-    controls.enabled = true
+
 
     controls.addEventListener('change', function () {
       // 浏览器控制台查看相机位置变化
@@ -155,10 +158,8 @@ const ThreeJSBallWithStars = () => {
     }
     starsGeometryRef.current!.attributes.color.needsUpdate = true;
 
-    console.log()
-
-    sphereRef.current!.rotation.y += 0.0005 * (rotationDirectionRef.current + translate);
-    starsRef.current!.rotation.y += 0.0005 * (rotationDirectionRef.current + translate);
+    sphereRef.current!.rotation.y += 0.0005 * (rotationDirectionRef.current);
+    starsRef.current!.rotation.y += 0.0005 * (rotationDirectionRef.current);
     controlsRef.current!.update();
     rendererRef.current!.render(sceneRef.current!, cameraRef.current!);
   };
@@ -168,72 +169,24 @@ const ThreeJSBallWithStars = () => {
     animate()
   }
 
-  useEffect(() => {
-    // 初始化轮播图位置
-    sliderRef.current?.splide?.Components.Move.translate(0)
-
-    if (translate !== 0) {
-      cancelAnimationFrame(animateRef.current)
-      animate()
-    } else {
-      animation()
-    }
-  }, [translate])
-
-  const [move, setMove] = useState(false)
-
-  useEffect(() => {
-    const slider = document.getElementById("slider");
-
-    let isDragging = false;
-    let startX = 0;
-
-    slider?.addEventListener("mousedown", function (event) {
-      isDragging = true;
-      startX = event.clientX;
-    });
-
-    document.addEventListener("mousemove", function (event) {
-      if (isDragging) {
-        const deltaX = event.clientX - startX;
-
-        // const curPosition = sliderRef.current?.splide?.Components.Move.getPosition()
-        // sliderRef.current?.splide?.Components.Move.translate(deltaX + curPosition!)
-        if (deltaX !== 0) {
-          setMove(true)
-        }
-
-        startX = event.clientX;
-      }
-    });
-
-    document.addEventListener("mouseup", function () {
-      isDragging = false;
-    });
-  }, [move])
-
-  return <section style={{
+  return (<section id='section' onClick={(e) => {
+    console.log(111, e.target.tagName)
+    e.stopPropagation()
+    e.preventDefault()
+    console.log(222, e.target.tagName)
+  }} style={{
     width: '100%',
     height: '100vh',
     position: 'relative',
     background: 'black'
   }} className='flex justify-center'>
-    <div id='slider' onMouseDown={() => console.log(3333)} onMouseEnter={(e) => {
-      e.stopPropagation()
-      e.preventDefault()
-      console.log(11111)
-      if (!move) setMove(true)
-    }} onMouseOut={(e) => {
-      e.stopPropagation()
-      e.preventDefault()
-      if (move) setMove(false)
-
-      console.log(222222)
-    }}
-      style={{ width: '80%', position: 'absolute', top: '50%', zIndex: 1, pointerEvents: move ? 'none' : 'auto' }}>
+    <div id='slider'
+      onClick={(e) => {
+        console.log(111111, e.target.tagName)
+      }}
+      style={{ width: '80%', position: 'absolute', top: '50%', zIndex: 1, userSelect: 'none' }}>
       <Splide
         ref={sliderRef}
-        onDragging={(r) => console.log(111111, r)}
         options={{
           type: 'loop',
           perPage: 3,
@@ -243,24 +196,30 @@ const ThreeJSBallWithStars = () => {
           waitForTransition: true
         }}>
         <SplideSlide key={1}>
-          <div>
+          <div onClick={() => console.log(111112222)}>
             <Image style={{ cursor: 'pointer' }} width={200} src={img1} alt="Image 1" />
           </div>
         </SplideSlide>
         <SplideSlide key={2}>
-          <Image style={{ cursor: 'pointer' }} width={200} src={img2} alt="Image 2" />
+          <div >
+            <Image style={{ cursor: 'pointer' }} width={200} src={img2} alt="Image 2" />
+          </div>
         </SplideSlide>
         <SplideSlide key={3}>
-          <Image style={{ cursor: 'pointer' }} width={200} src={img3} alt="Image 3" />
+          <div >
+            <Image style={{ cursor: 'pointer' }} width={200} src={img3} alt="Image 3" />
+          </div>
         </SplideSlide >
         <SplideSlide key={4}>
-          <Image style={{ cursor: 'pointer' }} width={200} src={img4} alt="Image 4" />
+          <div >
+            <Image style={{ cursor: 'pointer' }} width={200} src={img4} alt="Image 4" />
+          </div>
         </SplideSlide>
       </Splide>
     </div>
-    <div className='absolute' id="three-container" style={{ width: '100%', height: '100vh', position: 'absolute' }}>
+    <div className='absolute' id="three-container" style={{ width: '100%', height: '100vh', position: 'absolute', pointerEvents: 'none' }}>
     </div>
-  </section>
+  </section>)
 };
 
 export default ThreeJSBallWithStars;
